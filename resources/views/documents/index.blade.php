@@ -3,6 +3,12 @@
 @section('content')
 <div class="max-w-5xl mx-auto mt-10">
     <h2 class="text-2xl font-bold mb-6">Mis Documentos</h2>
+    {{-- Formulario de busqueda de documentos --}}
+        <form method="GET" action="{{ route('documents.index') }}" class="mb-6">
+            <input type="text" name="search" value="{{ request('search') }}"
+                placeholder="Buscar por nombre de documento..."
+                class="border rounded px-4 py-2 w-full max-w-md">
+        </form>
 
     @if (session('success'))
         <div class="bg-green-100 text-green-800 p-4 rounded mb-4">
@@ -13,6 +19,7 @@
     @if ($documents->isEmpty())
         <p class="text-gray-600">Aún no has subido documentos.</p>
     @else
+
         <table class="w-full bg-white shadow rounded">
             <thead>
                 <tr class="bg-gray-100 text-left">

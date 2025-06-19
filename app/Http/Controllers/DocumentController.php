@@ -12,9 +12,16 @@ class DocumentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $documents = Document::where('user_id', Auth::id())->latest()->get();
+        $query = Document::where('user_id', Auth::id());
+
+        if ($request->has('search') && $request->search !== '') {
+            $query->where('original_name', 'like', '%' . $request->search . '%');
+        }
+
+        $documents = $query->latest()->get();
+
         return view('documents.index', compact('documents'));
     }
 
