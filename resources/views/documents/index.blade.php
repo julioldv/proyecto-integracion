@@ -33,6 +33,9 @@
                             <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank"
                             class="text-blue-600 hover:underline">Ver</a>
 
+                            <a href="{{ route('documents.download', $doc->id) }}"
+                            class="text-green-600 hover:underline ml-2">Descargar</a>
+
                             <form action="{{ route('documents.destroy', $doc->id) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
@@ -43,6 +46,7 @@
                                 </button>
                             </form>
                         </td>
+
                     </tr>
                 @endforeach
             </tbody>

@@ -98,4 +98,19 @@ class DocumentController extends Controller
 
         return redirect()->route('documents.index')->with('success', 'Documento eliminado correctamente.');
     }
+
+    public function download(Document $document)
+    {
+        if ($document->user_id !== Auth::id()) {
+            abort(403, 'No autorizado');
+        }
+
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            return redirect()->route('documents.index')
+                            ->with('error', 'El archivo ya no existe en el sistema.');
+        }
+
+        return Storage::disk('public')->download($document->file_path, $document->original_name);
+    }
+
 }
