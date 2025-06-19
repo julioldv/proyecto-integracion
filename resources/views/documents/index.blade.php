@@ -3,12 +3,22 @@
 @section('content')
 <div class="max-w-5xl mx-auto mt-10">
     <h2 class="text-2xl font-bold mb-6">Mis Documentos</h2>
-    {{-- Formulario de busqueda de documentos --}}
-        <form method="GET" action="{{ route('documents.index') }}" class="mb-6">
+    {{-- Boton subir nuevo documento --}}
+    
+    {{-- Fila de búsqueda + botón de subir --}}
+    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <form method="GET" action="{{ route('documents.index') }}" class="w-full md:max-w-md">
             <input type="text" name="search" value="{{ request('search') }}"
                 placeholder="Buscar por nombre de documento..."
-                class="border rounded px-4 py-2 w-full max-w-md">
+                class="border rounded px-4 py-2 w-full">
         </form>
+
+        <a href="{{ route('documents.create') }}"
+        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-center">
+            Subir nuevo documento
+        </a>
+    </div>
+
 
     @if (session('success'))
         <div class="bg-green-100 text-green-800 p-4 rounded mb-4">
@@ -35,7 +45,7 @@
                         <td class="p-3">{{ $doc->original_name }}</td>
                         <td class="p-3 text-xs text-gray-500 truncate">{{ $doc->file_hash }}</td>
                         <td class="p-3">{{ $doc->created_at->format('d/m/Y H:i') }}</td>
-                        {{-- Botones Ver y Eliminar --}}
+                        {{-- Botones Ver, Descargar, Eliminar --}}
                         <td class="p-3 text-center space-x-2">
                             <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank"
                             class="text-blue-600 hover:underline">Ver</a>
