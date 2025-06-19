@@ -28,9 +28,20 @@
                         <td class="p-3">{{ $doc->original_name }}</td>
                         <td class="p-3 text-xs text-gray-500 truncate">{{ $doc->file_hash }}</td>
                         <td class="p-3">{{ $doc->created_at->format('d/m/Y H:i') }}</td>
-                        <td class="p-3 text-center">
+                        {{-- Botones Ver y Eliminar --}}
+                        <td class="p-3 text-center space-x-2">
                             <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank"
-                               class="text-blue-600 hover:underline">Ver</a>
+                            class="text-blue-600 hover:underline">Ver</a>
+
+                            <form action="{{ route('documents.destroy', $doc->id) }}" method="POST" class="inline">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        onclick="return confirm('¿Estás seguro de eliminar este documento?')"
+                                        class="text-red-600 hover:underline ml-2">
+                                    Eliminar
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 @endforeach

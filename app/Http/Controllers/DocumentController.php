@@ -83,6 +83,19 @@ class DocumentController extends Controller
      */
     public function destroy(Document $document)
     {
-        //
+         // Verifica que el documento pertenezca al usuario actual
+        if ($document->user_id !== Auth::id()) {
+            abort(403, 'No autorizado');
+        }
+
+        // Elimina el archivo físico si existe
+        if (Storage::disk('public')->exists($document->file_path)) {
+            Storage::disk('public')->delete($document->file_path);
+        }
+
+        // Elimina el registro de la base de datos
+        $document->delete();
+
+        return redirect()->route('documents.index')->with('success', 'Documento eliminado correctamente.');
     }
 }
