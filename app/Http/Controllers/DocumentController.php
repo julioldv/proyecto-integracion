@@ -6,12 +6,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Document;
+use App\Models\KeyPair;       // ←  nuevo
+use App\Models\Signature;     // (por si quieres usarlo en show)
 
 class DocumentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    /* ───── Lista ───── */
     public function index(Request $request)
     {
         $query = Document::where('user_id', Auth::id());
@@ -25,87 +25,76 @@ class DocumentController extends Controller
         return view('documents.index', compact('documents'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+    /* ───── Formulario de subida ───── */
     public function create()
     {
         return view('documents.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+    /* ───── Guardar PDF ───── */
     public function store(Request $request)
     {
         $request->validate([
-        'document' => 'required|file|mimes:pdf|max:10240', // máximo 10 MB
+            'document' => 'required|file|mimes:pdf|max:10240',
         ]);
 
-        $file = $request->file('document');
+        $file         = $request->file('document');
         $originalName = $file->getClientOriginalName();
-        $content = file_get_contents($file->getRealPath());
-        $hash = hash('sha256', $content);
+        $hash         = hash_file('sha256', $file->getRealPath());
+        $path         = $file->store('documents', 'public');
 
-        // Guarda el archivo en storage/app/public/documents
-        $path = $file->store('documents', 'public');
-
-        // Crea el registro en la base de datos
         Document::create([
             'original_name' => $originalName,
-            'file_path' => $path,
-            'file_hash' => $hash,
-            'user_id' => Auth::id(),
+            'file_path'     => $path,
+            'file_hash'     => $hash,
+            'user_id'       => Auth::id(),
         ]);
 
-        return redirect()->route('documents.index')->with('success', 'Documento subido correctamente.');
+        return redirect()
+            ->route('documents.index')
+            ->with('success', 'Documento subido correctamente.');
     }
 
-    /**
-     * Display the specified resource.
-     */
+    /* ───── Mostrar (si lo necesitas) ───── */
     public function show(Document $document)
     {
-        //
+        $signature = $document->signatures()
+                              ->where('user_id', Auth::id())
+                              ->first();
+
+        $isValid = null;
+        if ($signature) {
+            $publicKey = $signature->user->keyPairs()->latest()->value('public_key');
+            $isValid   = openssl_verify(
+                $document->file_hash,
+                base64_decode($signature->signature_bin),
+                $publicKey,
+                OPENSSL_ALGO_SHA256
+            ) === 1;
+        }
+
+        // Podrías retornar una vista con $document y $isValid
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Document $document)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Document $document)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
+    /* ───── Eliminar PDF ───── */
     public function destroy(Document $document)
     {
-         // Verifica que el documento pertenezca al usuario actual
         if ($document->user_id !== Auth::id()) {
             abort(403, 'No autorizado');
         }
 
-        // Elimina el archivo físico si existe
         if (Storage::disk('public')->exists($document->file_path)) {
             Storage::disk('public')->delete($document->file_path);
         }
 
-        // Elimina el registro de la base de datos
         $document->delete();
 
-        return redirect()->route('documents.index')->with('success', 'Documento eliminado correctamente.');
+        return redirect()
+            ->route('documents.index')
+            ->with('success', 'Documento eliminado correctamente.');
     }
 
+    /* ───── Descargar con verificación de firma ───── */
     public function download(Document $document)
     {
         if ($document->user_id !== Auth::id()) {
@@ -114,10 +103,38 @@ class DocumentController extends Controller
 
         if (!Storage::disk('public')->exists($document->file_path)) {
             return redirect()->route('documents.index')
-                            ->with('error', 'El archivo ya no existe en el sistema.');
+                             ->with('error', 'El archivo ya no existe en el sistema.');
         }
 
-        return Storage::disk('public')->download($document->file_path, $document->original_name);
-    }
+        /* 1. Verificar la firma (si existe) */
+        $sign = $document->signatures()
+                         ->where('user_id', Auth::id())
+                         ->first();
 
+        if ($sign) {
+            $publicKey = KeyPair::where('user_id', Auth::id())
+                                ->latest()
+                                ->value('public_key');
+
+            $ok = openssl_verify(
+                $document->file_hash,
+                base64_decode($sign->signature_bin),
+                $publicKey,
+                OPENSSL_ALGO_SHA256
+            );
+
+            if ($ok !== 1) {
+                return back()->with(
+                    'error',
+                    'Firma inválida: el documento pudo haberse alterado.'
+                );
+            }
+        }
+
+        /* 2. Todo bien → descarga */
+        return Storage::disk('public')->download(
+            $document->file_path,
+            $document->original_name
+        );
+    }
 }

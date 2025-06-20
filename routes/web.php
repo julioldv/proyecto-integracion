@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\KeyPairController;
+use App\Http\Controllers\SignatureController;
 use Illuminate\Support\Facades\Route;
 
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('documents', App\Http\Controllers\DocumentController::class);
     Route::get('/documents/{document}/download', [App\Http\Controllers\DocumentController::class, 'download'])->name('documents.download');
     //Route::resource('keys', KeyPairController::class)->only(['index','create','store','destroy']);
-    Route::resource('keys', KeyPairController::class)->only(['index','store','destroy']);
+    Route::resource('keys', KeyPairController::class)->only(['index','create','store','destroy']);
+    Route::post('/documents/{document}/sign', [SignatureController::class,'store'])->name('documents.sign');
 
 });
 

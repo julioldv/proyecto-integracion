@@ -45,4 +45,7 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function keyPairs()   { return $this->hasMany(KeyPair::class);   }
+    public function signatures() { return $this->hasMany(Signature::class); }
 }
