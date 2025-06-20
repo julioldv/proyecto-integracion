@@ -55,7 +55,7 @@ class DocumentController extends Controller
             ->with('success', 'Documento subido correctamente.');
     }
 
-    /* ───── Mostrar (si lo necesitas) ───── */
+    /* ───── Mostrar  ───── */
     public function show(Document $document)
     {
         $signature = $document->signatures()
@@ -73,7 +73,7 @@ class DocumentController extends Controller
             ) === 1;
         }
 
-        // Podrías retornar una vista con $document y $isValid
+        // Podria retornarse una vista con $document y $isValid
     }
 
     /* ───── Eliminar PDF ───── */

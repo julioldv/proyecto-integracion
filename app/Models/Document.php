@@ -47,4 +47,7 @@ class Document extends Model
 
         return $ok === 1 ? 'válida' : 'inválida';
     }
+
+    public function user() { return $this->belongsTo(User::class); }
+
 }

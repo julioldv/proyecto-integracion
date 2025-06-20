@@ -1,10 +1,24 @@
 @extends('layouts.app')
 
+@php use Illuminate\Support\Str; @endphp
+
 @section('content')
 <div class="max-w-4xl mx-auto mt-10">
     <h2 class="text-2xl font-bold mb-6">Mis llaves públicas</h2>
 
-    {{-- Botón para generar y descargar en una pestaña nueva --}}
+    {{-- Mensajes flash --}}
+    @if (session('success'))
+        <div class="bg-green-100 text-green-800 p-4 rounded mb-4">
+            {{ session('success') }}
+        </div>
+    @endif
+    @if (session('error'))
+        <div class="bg-red-100 text-red-800 p-4 rounded mb-4">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    {{-- Generar llave y descargar en nueva pestaña --}}
     <form action="{{ route('keys.store') }}" method="POST" target="_blank" class="inline">
         @csrf
         <button type="submit"
@@ -23,9 +37,9 @@
         </thead>
         <tbody>
             @foreach ($keys as $k)
-            <tr class="border-t">
+            <tr class="border-t hover:bg-gray-50">
                 <td class="p-3">{{ $k->id }}</td>
-                <td class="p-3 text-xs truncate">{{ \Illuminate\Support\Str::limit($k->public_key, 80) }}</td>
+                <td class="p-3 text-xs truncate">{{ Str::limit($k->public_key, 80) }}</td>
                 <td class="p-3">{{ $k->created_at->format('d/m/Y H:i') }}</td>
             </tr>
             @endforeach

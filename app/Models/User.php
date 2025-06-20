@@ -48,4 +48,5 @@ class User extends Authenticatable
 
     public function keyPairs()   { return $this->hasMany(KeyPair::class);   }
     public function signatures() { return $this->hasMany(Signature::class); }
+    public function documents() { return $this->hasMany(Document::class); }
 }

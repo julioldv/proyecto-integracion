@@ -1,5 +1,8 @@
 @extends('layouts.app')
 
+{{-- helper para abreviar texto --}}
+@php use Illuminate\Support\Str; @endphp
+
 @section('content')
 <div class="max-w-5xl mx-auto mt-10">
     <h2 class="text-2xl font-bold mb-6">Mis Documentos</h2>
@@ -43,24 +46,19 @@
                     <th class="p-3 text-center">Acciones</th>
                 </tr>
             </thead>
-
             <tbody>
             @foreach ($documents as $doc)
-                @php
-                    $estadoFirma = $doc->signatureStatusFor(auth()->user());
-                @endphp
+                @php $estadoFirma = $doc->signatureStatusFor(auth()->user()); @endphp
                 <tr class="border-t hover:bg-gray-50">
                     <td class="p-3">{{ $doc->original_name }}</td>
 
                     <td class="p-3 text-xs text-gray-500 truncate">
-                        {{ $doc->file_hash }}
+                        {{ Str::limit($doc->file_hash, 40) }}
                     </td>
 
-                    <td class="p-3">
-                        {{ $doc->created_at->format('d/m/Y H:i') }}
-                    </td>
+                    <td class="p-3">{{ $doc->created_at->format('d/m/Y H:i') }}</td>
 
-                    {{-- Columna estado de firma --}}
+                    {{-- Estado de firma --}}
                     <td class="p-3">
                         @switch($estadoFirma)
                             @case('válida')
@@ -88,20 +86,17 @@
                             @method('DELETE')
                             <button type="submit"
                                     onclick="return confirm('¿Estás seguro de eliminar este documento?')"
-                                    class="text-red-600 hover:underline ml-2">
-                                Eliminar
-                            </button>
+                                    class="text-red-600 hover:underline ml-2">Eliminar</button>
                         </form>
 
-                        {{-- Mostrar botón Firmar solo si aún no tiene firma válida --}}
                         @if ($estadoFirma !== 'válida')
                             <form action="{{ route('documents.sign', $doc->id) }}"
                                   method="POST" enctype="multipart/form-data" class="inline">
                                 @csrf
                                 <label class="cursor-pointer text-indigo-600 hover:underline ml-2">
                                     Firmar
-                                    <input type="file" name="private_key"
-                                           class="hidden" onchange="this.form.submit()">
+                                    <input type="file" name="private_key" class="hidden"
+                                           onchange="this.form.submit()">
                                 </label>
                             </form>
                         @endif
