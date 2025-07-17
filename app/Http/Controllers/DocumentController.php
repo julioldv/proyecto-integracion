@@ -1,21 +1,29 @@
 <?php
-
+/**
+ * Controlador para Documentos
+ * --------------------------------
+ *  index()      → Listar + buscar
+ *  create()     → Formulario subir PDF
+ *  store()      → Guardar PDF y metadatos
+ *  download()   → Descargar tras verificar firma
+ *  destroy()    → Borrar registro + archivo
+ */
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Document;
-use App\Models\KeyPair;       // ←  nuevo
-use App\Models\Signature;     // (por si quieres usarlo en show)
+use App\Models\KeyPair;       
+use App\Models\Signature;     // (por si se requiere usarlo en el en show)
 
 class DocumentController extends Controller
 {
-    /* ───── Lista ───── */
+    /* ───── Listado y busqueda  ───── */
     public function index(Request $request)
     {
         $query = Document::where('user_id', Auth::id());
-
+         /*  Filtrado por nombre original  */
         if ($request->has('search') && $request->search !== '') {
             $query->where('original_name', 'like', '%' . $request->search . '%');
         }
@@ -34,6 +42,7 @@ class DocumentController extends Controller
     /* ───── Guardar PDF ───── */
     public function store(Request $request)
     {
+        // Validacion HTTP
         $request->validate([
             'document' => 'required|file|mimes:pdf|max:10240',
         ]);
@@ -41,8 +50,9 @@ class DocumentController extends Controller
         $file         = $request->file('document');
         $originalName = $file->getClientOriginalName();
         $hash         = hash_file('sha256', $file->getRealPath());
-        $path         = $file->store('documents', 'public');
+        $path         = $file->store('documents', 'public'); //Se guarda el documento en el disco public
 
+        //Persistencia del documento
         Document::create([
             'original_name' => $originalName,
             'file_path'     => $path,
@@ -50,6 +60,7 @@ class DocumentController extends Controller
             'user_id'       => Auth::id(),
         ]);
 
+        //Respuesta
         return redirect()
             ->route('documents.index')
             ->with('success', 'Documento subido correctamente.');
@@ -73,7 +84,7 @@ class DocumentController extends Controller
             ) === 1;
         }
 
-        // Podria retornarse una vista con $document y $isValid
+        // Podria retornarse una vista con $document y $isValid, por el momento no lo hago
     }
 
     /* ───── Eliminar PDF ───── */
@@ -131,7 +142,7 @@ class DocumentController extends Controller
             }
         }
 
-        /* 2. Todo bien → descarga */
+        /* 2. Si todoe esta bien se procede a la descarga*/
         return Storage::disk('public')->download(
             $document->file_path,
             $document->original_name

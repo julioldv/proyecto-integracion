@@ -1,5 +1,11 @@
 <?php
-
+/*───────────────────────────────────────────────────────────────
+ |  Tabla: documents
+ |  Motivo: Persistir meta-datos de cada PDF subido.
+ |  Regla de negocio clave:
+ |    • hash SHA-256 se genera al momento de la subida y nunca cambia.
+ |    • Si el usuario se elimina, los documentos se borran en cascada.
+ *──────────────────────────────────────────────────────────────*/
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

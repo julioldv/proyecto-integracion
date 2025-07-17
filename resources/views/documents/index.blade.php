@@ -1,6 +1,7 @@
+{{-- Vista principal: listado y busqueda y acciones --}}
 @extends('layouts.app')
 
-{{-- helper para abreviar texto --}}
+
 @php use Illuminate\Support\Str; @endphp
 
 @section('content')
@@ -21,7 +22,7 @@
         </a>
     </div>
 
-    {{-- Mensajes flash --}}
+    {{-- Mensajes flash de exito y error--}}
     @if (session('success'))
         <div class="bg-green-100 text-green-800 p-4 rounded mb-4">
             {{ session('success') }}
@@ -32,10 +33,11 @@
             {{ session('error') }}
         </div>
     @endif
-
+    {{-- Texto que se muestra cuando no hay documentos --}}
     @if ($documents->isEmpty())
         <p class="text-gray-600">Aún no has subido documentos.</p>
     @else
+        {{-- Tabla de resultados --}}
         <table class="w-full bg-white shadow rounded">
             <thead>
                 <tr class="bg-gray-100 text-left">
@@ -72,7 +74,7 @@
                         @endswitch
                     </td>
 
-                    {{-- Acciones --}}
+                    {{-- Acciones--}}
                     <td class="p-3 text-center space-x-2">
                         <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank"
                            class="text-blue-600 hover:underline">Ver</a>

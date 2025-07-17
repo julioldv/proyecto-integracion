@@ -1,9 +1,10 @@
+{{-- Formulario de carga de pdf --}}
 @extends('layouts.app')
 
 @section('content')
 <div class="max-w-2xl mx-auto mt-10 bg-white p-6 rounded shadow">
     <h2 class="text-xl font-bold mb-4">Subir documento PDF</h2>
-
+    {{-- Errores de validacion --}}
     @if ($errors->any())
         <div class="bg-red-100 text-red-700 p-3 mb-4 rounded">
             <ul class="list-disc pl-5">

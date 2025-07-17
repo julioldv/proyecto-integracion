@@ -30,7 +30,7 @@ class KeyPairController extends Controller
      */
     public function store(Request $request)
     {
-        /// 1. Generar par de llaves (RSA 2048 por compatibilidad; DSA puede fallar en Windows)
+        /// 1. Generar par de llaves
         $config = [
             "private_key_bits" => 2048,
             "private_key_type" => OPENSSL_KEYTYPE_RSA,

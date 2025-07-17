@@ -1,5 +1,13 @@
 <?php
-
+/**
+ * Modelo Eloquent: Document
+ * -------------------------
+ *  • Representa la tabla `documents`
+ *  • Encapsula la lógica de verificación de firmas
+ *  • Relaciones:
+ *      - belongsTo User   → dueño que subió el PDF
+ *      - hasMany  Signature → firmas digitales asociadas
+ */
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -19,17 +27,21 @@ class Document extends Model
         'user_id',
     ];
 
+    //Relaciones
     public function signatures() { return $this->hasMany(Signature::class); }
+    public function user() { return $this->belongsTo(User::class); }
 
-    public function signatureStatusFor(User $user): string   // ← cambia el tipo
-    {
+    //Estado de la fima para un usuario
+    public function signatureStatusFor(User $user): string   // 
+    {   
+        //1. Verificamos si existe firma
         $sig = $this->signatures()->where('user_id', $user->id)->first();
 
         if (!$sig) {
             return 'no-firmado';
         }
 
-        // llave pública más reciente del firmante
+        //2. Obtener la llave pública usada para esa firma
         $publicKey = KeyPair::where('user_id', $user->id)
                             ->latest()
                             ->value('public_key');
@@ -38,6 +50,7 @@ class Document extends Model
             return 'sin-publica';      // caso anómalo
         }
 
+        //3. Verificar la firma
         $ok = openssl_verify(
             $this->file_hash,
             base64_decode($sig->signature_bin),
@@ -48,6 +61,6 @@ class Document extends Model
         return $ok === 1 ? 'válida' : 'inválida';
     }
 
-    public function user() { return $this->belongsTo(User::class); }
+    
 
 }
