@@ -41,6 +41,7 @@
         <table class="w-full bg-white shadow rounded">
             <thead>
                 <tr class="bg-gray-100 text-left">
+                    <th class="p‑3">Propietario</th> 
                     <th class="p-3">Nombre</th>
                     <th class="p-3">Hash</th>
                     <th class="p-3">Fecha</th>
@@ -52,6 +53,7 @@
             @foreach ($documents as $doc)
                 @php $estadoFirma = $doc->signatureStatusFor(auth()->user()); @endphp
                 <tr class="border-t hover:bg-gray-50">
+                    <td class="p-3 text-sm text-gray-600">{{ $doc->user->email }}</td>
                     <td class="p-3">{{ $doc->original_name }}</td>
 
                     <td class="p-3 text-xs text-gray-500 truncate">

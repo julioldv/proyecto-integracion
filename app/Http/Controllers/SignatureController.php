@@ -12,6 +12,12 @@ class SignatureController extends Controller
 {
     public function store(Request $request, Document $document)
     {
+        if (!$this->checkIntegrity($document)) {
+        return back()->with(
+            'error',
+            'El archivo almacenado fue modificado; no se puede firmar.'
+        );
+        }
         // 1. Validar que el usuario tenga al menos una llave pública
         $publicKey = KeyPair::where('user_id', Auth::id())
                             ->latest()
@@ -56,4 +62,12 @@ class SignatureController extends Controller
 
         return back()->with('success', 'Documento firmado correctamente.');
     }
+
+    private function checkIntegrity(Document $doc): bool
+    {
+        $path = storage_path('app/public/' . $doc->file_path);
+        return file_exists($path) && hash_file('sha256', $path) === $doc->file_hash;
+    }
+
+
 }

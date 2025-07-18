@@ -1,12 +1,12 @@
 <?php
 /**
  * Controlador para Documentos
- * --------------------------------
- *  index()      → Listar + buscar
- *  create()     → Formulario subir PDF
- *  store()      → Guardar PDF y metadatos
- *  download()   → Descargar tras verificar firma
- *  destroy()    → Borrar registro + archivo
+ * ---------------------------------------------------------
+ *  index()      → Listado global + búsqueda (nombre / correo)
+ *  create()     → Formulario para subir PDF
+ *  store()      → Guarda PDF y metadatos
+ *  download()   → Descarga (verifica integridad + firma)
+ *  destroy()    → Borra registro + archivo (solo dueño)
  */
 namespace App\Http\Controllers;
 
@@ -14,84 +14,62 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Document;
-use App\Models\KeyPair;       
-use App\Models\Signature;     // (por si se requiere usarlo en el en show)
+use App\Models\KeyPair;
 
 class DocumentController extends Controller
 {
-    /* ───── Listado y busqueda  ───── */
+    /* ───────── Listado + búsqueda ───────── */
     public function index(Request $request)
     {
-        $query = Document::where('user_id', Auth::id());
-         /*  Filtrado por nombre original  */
-        if ($request->has('search') && $request->search !== '') {
-            $query->where('original_name', 'like', '%' . $request->search . '%');
-        }
+        $search = $request->input('search');
 
-        $documents = $query->latest()->get();
+        $documents = Document::query()
+            ->with('user')                                              // mostrar propietario
+            ->when($search, function ($q) use ($search) {
+                $q->where('original_name', 'like', "%{$search}%")
+                  ->orWhereHas('user', fn ($u) =>
+                      $u->where('email', 'like', "%{$search}%")
+                  );
+            })
+            ->latest()
+            ->get();
 
-        return view('documents.index', compact('documents'));
+        return view('documents.index', compact('documents', 'search'));
     }
 
-    /* ───── Formulario de subida ───── */
+    /* ───────── Formulario ───────── */
     public function create()
     {
         return view('documents.create');
     }
 
-    /* ───── Guardar PDF ───── */
+    /* ───────── Guardar PDF ───────── */
     public function store(Request $request)
     {
-        // Validacion HTTP
         $request->validate([
             'document' => 'required|file|mimes:pdf|max:10240',
         ]);
 
-        $file         = $request->file('document');
-        $originalName = $file->getClientOriginalName();
-        $hash         = hash_file('sha256', $file->getRealPath());
-        $path         = $file->store('documents', 'public'); //Se guarda el documento en el disco public
+        $file  = $request->file('document');
+        $hash  = hash_file('sha256', $file->getRealPath());
+        $path  = $file->store('documents', 'public');
 
-        //Persistencia del documento
         Document::create([
-            'original_name' => $originalName,
+            'original_name' => $file->getClientOriginalName(),
             'file_path'     => $path,
             'file_hash'     => $hash,
             'user_id'       => Auth::id(),
         ]);
 
-        //Respuesta
-        return redirect()
-            ->route('documents.index')
-            ->with('success', 'Documento subido correctamente.');
+        return redirect()->route('documents.index')
+                         ->with('success', 'Documento subido correctamente.');
     }
 
-    /* ───── Mostrar  ───── */
-    public function show(Document $document)
-    {
-        $signature = $document->signatures()
-                              ->where('user_id', Auth::id())
-                              ->first();
-
-        $isValid = null;
-        if ($signature) {
-            $publicKey = $signature->user->keyPairs()->latest()->value('public_key');
-            $isValid   = openssl_verify(
-                $document->file_hash,
-                base64_decode($signature->signature_bin),
-                $publicKey,
-                OPENSSL_ALGO_SHA256
-            ) === 1;
-        }
-
-        // Podria retornarse una vista con $document y $isValid, por el momento no lo hago
-    }
-
-    /* ───── Eliminar PDF ───── */
+    /* ───────── Eliminar (solo dueño) ───────── */
     public function destroy(Document $document)
     {
         if ($document->user_id !== Auth::id()) {
-            abort(403, 'No autorizado');
+            return back()->with('error', 'Solo el propietario puede eliminar el documento.');
         }
 
         if (Storage::disk('public')->exists($document->file_path)) {
@@ -100,30 +78,24 @@ class DocumentController extends Controller
 
         $document->delete();
 
-        return redirect()
-            ->route('documents.index')
-            ->with('success', 'Documento eliminado correctamente.');
+        return back()->with('success', 'Documento eliminado correctamente.');
     }
 
-    /* ───── Descargar con verificación de firma ───── */
+    /* ───────── Descargar ───────── */
     public function download(Document $document)
     {
-        if ($document->user_id !== Auth::id()) {
-            abort(403, 'No autorizado');
+        /** 1 · Integridad del archivo */
+        if (!$this->checkIntegrity($document)) {
+            return back()->with('error', 'El archivo fue alterado o falta; descarga cancelada.');
         }
 
-        if (!Storage::disk('public')->exists($document->file_path)) {
-            return redirect()->route('documents.index')
-                             ->with('error', 'El archivo ya no existe en el sistema.');
-        }
-
-        /* 1. Verificar la firma (si existe) */
+        /** 2 · Verificación de firma (si existe) */
         $sign = $document->signatures()
-                         ->where('user_id', Auth::id())
-                         ->first();
+                         ->where('user_id', $document->user_id)
+                         ->first();                                 // firma del propietario
 
         if ($sign) {
-            $publicKey = KeyPair::where('user_id', Auth::id())
+            $publicKey = KeyPair::where('user_id', $document->user_id)
                                 ->latest()
                                 ->value('public_key');
 
@@ -135,17 +107,22 @@ class DocumentController extends Controller
             );
 
             if ($ok !== 1) {
-                return back()->with(
-                    'error',
-                    'Firma inválida: el documento pudo haberse alterado.'
-                );
+                return back()->with('error', 'Firma inválida; el documento no coincide.');
             }
         }
 
-        /* 2. Si todoe esta bien se procede a la descarga*/
-        return Storage::disk('public')->download(
-            $document->file_path,
-            $document->original_name
-        );
+        /** 3 · Todo correcto → descarga */
+        return Storage::disk('public')->download($document->file_path, $document->original_name);
+    }
+
+    /* =======================================================
+     * Helper: comprueba que el archivo físico coincide
+     *         con el hash almacenado en BD                   */
+    private function checkIntegrity(Document $doc): bool
+    {
+        $path = storage_path('app/public/' . $doc->file_path);
+
+        return file_exists($path) &&
+               hash_file('sha256', $path) === $doc->file_hash;
     }
 }

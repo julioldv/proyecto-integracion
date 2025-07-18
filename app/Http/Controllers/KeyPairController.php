@@ -3,86 +3,55 @@
 namespace App\Http\Controllers;
 
 use App\Models\KeyPair;
+use App\Models\Signature;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class KeyPairController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    /* ───────── Listado ───────── */
     public function index()
     {
-        $keys = KeyPair::where('user_id', Auth::id())->latest()->get();
+        $keys = KeyPair::where('user_id', Auth::id())->get(); // ya será solo 1
         return view('keys.index', compact('keys'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    // public function create()
-    // {
-    //     return view('keys.create');
-    // }
-
-    /**
-     * Store a newly created resource in storage.
-     */
+    /* ───────── Generar / Regenerar par de llaves ───────── */
     public function store(Request $request)
     {
-        /// 1. Generar par de llaves
-        $config = [
-            "private_key_bits" => 2048,
-            "private_key_type" => OPENSSL_KEYTYPE_RSA,
+        /* 1. Generar par RSA‑2048 */
+        $cfg = [
+            'private_key_bits'  => 2048,
+            'private_key_type'  => OPENSSL_KEYTYPE_RSA,
         ];
-        $res = openssl_pkey_new($config);
+        $res = openssl_pkey_new($cfg);
 
-        // 2. Extraer llaves
-        openssl_pkey_export($res, $privateKey);                       // PEM de la llave privada
-        $publicKey = openssl_pkey_get_details($res)['key'];           // PEM de la pública
+        if ($res === false) {
+            return back()->with(
+                'error',
+                'OpenSSL no pudo generar la llave: ' . openssl_error_string()
+            );
+        }
 
-        // 3. Guardar la pública en BD
+        /* 2. Extraer llaves en PEM */
+        openssl_pkey_export($res, $privatePem);
+        $publicPem = openssl_pkey_get_details($res)['key'];
+
+        /* 3. Política: un solo par por usuario →  
+              - borrar firmas del usuario  
+              - borrar (o sobrescribir) llave anterior */
+        Signature::where('user_id', Auth::id())->delete();
+        KeyPair::where('user_id', Auth::id())->delete();
+
         $keyPair = KeyPair::create([
-            'public_key' => $publicKey,
+            'public_key' => $publicPem,
             'user_id'    => Auth::id(),
         ]);
 
-        // 4. Entregar la privada como descarga única
+        /* 4. Descargar la privada una única vez */
         return response()->streamDownload(
-            fn() => print($privateKey),
-            'private_key_'.$keyPair->id.'.pem'
+            fn() => print($privatePem),
+            'private_key_' . $keyPair->id . '.pem'
         );
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(KeyPair $keyPair)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(KeyPair $keyPair)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, KeyPair $keyPair)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(KeyPair $keyPair)
-    {
-        //
     }
 }
