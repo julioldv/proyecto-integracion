@@ -12,7 +12,7 @@
     <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <form method="GET" action="{{ route('documents.index') }}" class="w-full md:max-w-md">
             <input type="text" name="search" value="{{ request('search') }}"
-                   placeholder="Buscar por nombre de documento..."
+                   placeholder="Buscar por propietario o nombre de documento..."
                    class="border rounded px-4 py-2 w-full">
         </form>
 
