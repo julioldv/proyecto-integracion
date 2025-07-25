@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('document_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('key_pair_id')->constrained()->cascadeOnDelete();
             $table->text('signature_bin');          // firma en binario (base64)
             $table->timestamps();
             $table->unique(['document_id','user_id']); // un usuario firma una vez cada documento

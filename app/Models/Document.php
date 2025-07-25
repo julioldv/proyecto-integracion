@@ -34,6 +34,11 @@ class Document extends Model
     //Estado de la fima para un usuario
     public function signatureStatusFor(User $user): string   // 
     {   
+        //0. Verificamos integridad del archivo
+        if (!$this->isIntact()) {
+        return 'alterado';          // ⚠ archivo no coincide con hash BD
+        }
+
         //1. Verificamos si existe firma
         $sig = $this->signatures()->where('user_id', $user->id)->first();
 
@@ -61,6 +66,16 @@ class Document extends Model
         return $ok === 1 ? 'válida' : 'inválida';
     }
 
-    
+    /**
+     * Devuelve true si el archivo físico coincide con el hash
+     * almacenado en la base de datos.
+     */
+    public function isIntact(): bool
+    {
+        $path = storage_path('app/public/' . $this->file_path);
+
+        return file_exists($path) &&
+            hash_file('sha256', $path) === $this->file_hash;
+    }
 
 }

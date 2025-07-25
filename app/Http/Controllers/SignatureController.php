@@ -3,31 +3,28 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;     // ← fachada Auth
-use App\Models\Document;                 // ← modelo de documentos
-use App\Models\KeyPair;                  // ← modelo de llaves públicas
-use App\Models\Signature;                // ← modelo de firmas
+use Illuminate\Support\Facades\Auth;
+use App\Models\Document;
+use App\Models\KeyPair;
+use App\Models\Signature;
 
 class SignatureController extends Controller
 {
     public function store(Request $request, Document $document)
     {
-        if (!$this->checkIntegrity($document)) {
-        return back()->with(
-            'error',
-            'El archivo almacenado fue modificado; no se puede firmar.'
-        );
-        }
-        // 1. Validar que el usuario tenga al menos una llave pública
-        $publicKey = KeyPair::where('user_id', Auth::id())
-                            ->latest()
-                            ->value('public_key');
-
-        if (!$publicKey) {
-            return back()->with('error', 'Primero genera una llave pública.');
+        /* 0 · Integridad del PDF */
+        if (!$document->isIntact()) {                         // usa el helper del modelo
+            return back()->with('error',
+                'El archivo almacenado fue modificado; no se puede firmar.');
         }
 
-        // 2. Recibir la llave privada que el usuario sube
+        /* 1 · Obtener el par de llaves (único) del usuario */
+        $keyPair = Auth::user()->keyPairs()->latest()->first();
+        if (!$keyPair) {
+            return back()->with('error', 'Primero genera tu par de llaves.');
+        }
+
+        /* 2 · Recibir la llave privada que sube el usuario */
         $request->validate([
             'private_key' => 'required|file|mimetypes:text/plain,text/x-pem-file',
         ]);
@@ -35,39 +32,31 @@ class SignatureController extends Controller
             $request->file('private_key')->getRealPath()
         );
 
-        // 3. Comprobar que la llave privada coincide con la pública guardada
-        $testData = 'ping';
-        openssl_sign($testData, $sig, $privatePem, OPENSSL_ALGO_SHA256);
-        $ok = openssl_verify($testData, $sig, $publicKey, OPENSSL_ALGO_SHA256);
-
+        /* 3 · Comprobar que la privada coincide con la pública almacenada */
+        openssl_sign('ping', $sigTest, $privatePem, OPENSSL_ALGO_SHA256);
+        $ok = openssl_verify('ping', $sigTest, $keyPair->public_key, OPENSSL_ALGO_SHA256);
         if ($ok !== 1) {
             return back()->with('error',
                 'La llave privada no coincide con tu llave pública almacenada.');
         }
 
-        // 4. Firmar el hash del documento
-        $signature = null;
+        /* 4 · Firmar el hash del documento */
         openssl_sign(
             $document->file_hash,
-            $signature,
+            $signatureBin,
             $privatePem,
             OPENSSL_ALGO_SHA256
         );
 
-        // 5. Guardar (o actualizar) la firma en BD
+        /* 5 · Guardar (o actualizar) la firma y enlazarla con key_pair_id */
         Signature::updateOrCreate(
             ['document_id' => $document->id, 'user_id' => Auth::id()],
-            ['signature_bin' => base64_encode($signature)]
+            [
+                'key_pair_id'  => $keyPair->id,
+                'signature_bin'=> base64_encode($signatureBin),
+            ]
         );
 
         return back()->with('success', 'Documento firmado correctamente.');
     }
-
-    private function checkIntegrity(Document $doc): bool
-    {
-        $path = storage_path('app/public/' . $doc->file_path);
-        return file_exists($path) && hash_file('sha256', $path) === $doc->file_hash;
-    }
-
-
 }

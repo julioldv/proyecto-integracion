@@ -9,8 +9,26 @@ class Signature extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['document_id','user_id','signature_bin'];
+    protected $fillable = [
+        'document_id',
+        'user_id',
+        'key_pair_id',
+        'signature_bin'
+    ];
 
-    public function document() { return $this->belongsTo(Document::class); }
-    public function user()     { return $this->belongsTo(User::class);     }
+    /* Relaciones */
+    public function document()
+    {
+        return $this->belongsTo(Document::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function keyPair()
+    {
+        return $this->belongsTo(KeyPair::class);
+    }
 }
