@@ -14,9 +14,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Document;
-use App\Models\KeyPair;
-use App\Models\Signature;
+use App\Models\{Document, KeyPair, Signature};
 
 class DocumentController extends Controller
 {
@@ -26,7 +24,7 @@ class DocumentController extends Controller
         $search = $request->input('search');
 
         $documents = Document::query()
-            ->with('user')                                              // → mostrar propietario
+            ->with('user')                                 // propietario
             ->when($search, function ($q) use ($search) {
                 $q->where('original_name', 'like', "%{$search}%")
                   ->orWhereHas('user', fn ($u) =>
@@ -66,32 +64,38 @@ class DocumentController extends Controller
             ->with('success', 'Documento subido correctamente.');
     }
 
-    /* ───────── Detalle: firmas + estado ───────── */
+    /* ───────── Detalle ───────── */
     public function show(Document $document)
     {
-        // obtenemos todas las firmas + su key pair + usuario firmante
-        $signatures = $document->signatures()
-                               ->with(['user', 'keyPair'])
-                               ->get()
-                               ->map(function (Signature $sig) use ($document) {
-                                   $publicKey = $sig->keyPair->public_key ?? null;
+        /* 1 · ¿El PDF físico sigue intacto?  */
+        $integrity = $document->isIntact();      // ← método que agregamos al modelo
 
-                                   $valid = $publicKey
-                                       ? openssl_verify(
-                                             $document->file_hash,
-                                             base64_decode($sig->signature_bin),
-                                             $publicKey,
-                                             OPENSSL_ALGO_SHA256
-                                         ) === 1
-                                       : null;  // sin llave → no se puede validar
+        /* 2 · Recolectar firmas + validez por cada firmante           */
+        $signatures = $document->signatures()    // firmas del documento
+            ->with(['user', 'keyPair'])          // cargamos usuario y su keyPair
+            ->get()
+            ->map(function (Signature $sig) use ($document, $integrity) {
 
-                                   return [
-                                       'signature' => $sig,
-                                       'valid'     => $valid,
-                                   ];
-                               });
+                $publicKey = $sig->keyPair->public_key ?? null;
 
-        return view('documents.show', compact('document', 'signatures'));
+                // null = sin llave pública    true / false = resultado de verificación
+                $valid = null;
+                if ($integrity && $publicKey) {
+                    $valid = openssl_verify(
+                        $document->file_hash,
+                        base64_decode($sig->signature_bin),
+                        $publicKey,
+                        OPENSSL_ALGO_SHA256
+                    ) === 1;
+                }
+
+                return [
+                    'signature' => $sig,
+                    'valid'     => $valid,
+                ];
+            });
+
+        return view('documents.show', compact('document', 'integrity', 'signatures'));
     }
 
     /* ───────── Eliminar (solo dueño) ───────── */
@@ -101,9 +105,7 @@ class DocumentController extends Controller
             return back()->with('error', 'Solo el propietario puede eliminar el documento.');
         }
 
-        /* borra archivo físico si existe */
         Storage::disk('public')->delete($document->file_path);
-
         $document->delete();
 
         return back()->with('success', 'Documento eliminado correctamente.');
@@ -112,15 +114,12 @@ class DocumentController extends Controller
     /* ───────── Descargar ───────── */
     public function download(Document $document)
     {
-        /** 1 · Integridad */
+        /* 1 · Integridad */
         if (!$document->isIntact()) {
-            return back()->with(
-                'error',
-                'El archivo fue alterado o falta; descarga cancelada.'
-            );
+            return back()->with('error', 'El archivo fue alterado o falta; descarga cancelada.');
         }
 
-        /** 2 · Verifica firma del propietario (si existe) */
+        /* 2 · Verifica firma del propietario (si existe) */
         $sign = $document->signatures()
                          ->where('user_id', $document->user_id)
                          ->first();
@@ -135,12 +134,11 @@ class DocumentController extends Controller
                     $publicKey,
                     OPENSSL_ALGO_SHA256
                 ) !== 1) {
-
                 return back()->with('error', 'Firma inválida; el documento no coincide.');
             }
         }
 
-        /** 3 · Todo correcto → descarga */
+        /* 3 · Descarga */
         return Storage::disk('public')->download(
             $document->file_path,
             $document->original_name

@@ -1,10 +1,5 @@
 @extends('layouts.app')
 
-@php
-    /* importación opcional para Str::limit()               */
-    use Illuminate\Support\Str;
-@endphp
-
 @section('content')
 <div class="max-w-3xl mx-auto mt-10">
     <h2 class="text-2xl font-bold mb-6">Mi par de llaves</h2>
@@ -36,20 +31,20 @@
             <thead>
                 <tr class="bg-gray-100">
                     <th class="p-3">ID</th>
-                    <th class="p-3">Llave pública (abreviada)</th>
+                    <th class="p-3">Llave pública&nbsp;(abreviada)</th>
                     <th class="p-3">Creada</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach ($keys as $k)
-                    <tr class="border-t hover:bg-gray-50">
-                        <td class="p-3">{{ $k->id }}</td>
-                        <td class="p-3 text-xs truncate">
-                            {{ Str::limit($k->public_key, 80) }}
-                        </td>
-                        <td class="p-3">{{ $k->created_at->format('d/m/Y H:i') }}</td>
-                    </tr>
-                @endforeach
+            @foreach ($keys as $k)
+                <tr class="border-t hover:bg-gray-50">
+                    <td class="p-3">{{ $k->id }}</td>
+                    <td class="p-3 text-xs truncate">
+                        {{ \Illuminate\Support\Str::limit($k->public_key, 80) }}
+                    </td>
+                    <td class="p-3">{{ $k->created_at->format('d/m/Y H:i') }}</td>
+                </tr>
+            @endforeach
             </tbody>
         </table>
 
