@@ -5,7 +5,7 @@
 <div class="max-w-5xl mx-auto mt-10">
     <h2 class="text-2xl font-bold mb-6">Repositorio de documentos</h2>
 
-    {{-- 🔍 Búsqueda + botón Subir --}}
+    {{-- Búsqueda + botón Subir --}}
     <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <form method="GET" action="{{ route('documents.index') }}" class="w-full md:max-w-md">
             <input  type="text" name="search" value="{{ $search }}"
@@ -19,7 +19,7 @@
         </a>
     </div>
 
-    {{-- 🟢 / 🔴 mensajes flash --}}
+    {{-- mensajes flash --}}
     @foreach (['success' => 'green', 'error' => 'red'] as $msg => $color)
         @if (session($msg))
             <div class="bg-{{ $color }}-100 text-{{ $color }}-800 p-4 rounded mb-4">

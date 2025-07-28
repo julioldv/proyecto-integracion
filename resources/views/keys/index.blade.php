@@ -4,7 +4,7 @@
 <div class="max-w-3xl mx-auto mt-10">
     <h2 class="text-2xl font-bold mb-6">Mi par de llaves</h2>
 
-    {{-- ▸ Mensajes flash --}}
+    {{-- Mensajes flash --}}
     @foreach (['success' => 'green', 'error' => 'red'] as $t => $c)
         @if (session($t))
             <div class="bg-{{ $c }}-100 text-{{ $c }}-800 p-4 rounded mb-4">
