@@ -68,7 +68,7 @@ class DocumentController extends Controller
     public function show(Document $document)
     {
         /* 1 · ¿El PDF físico sigue intacto?  */
-        $integrity = $document->isIntact();      // ← método que agregamos al modelo
+        $integrity = $document->isIntact();      // ← método del modelo
 
         /* 2 · Recolectar firmas + validez por cada firmante           */
         $signatures = $document->signatures()    // firmas del documento
